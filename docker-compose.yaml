@@ -1,0 +1,106 @@
+version: '3'
+services:
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    ports:
+      - 6379:6379
+    network_mode: "bridge"
+    volumes:
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:rw
+      - ./redis/data:/data:rw
+    command:
+      /bin/bash -c "redis-server /usr/local/etc/redis/redis.conf"
+
+  mysql:
+      network_mode: "bridge"
+      environment:
+          MYSQL_ROOT_PASSWORD: "root"
+      image: "mysql"
+      restart: always
+      container_name: mysql
+      volumes:
+        - "./mysql/data:/var/lib/mysql"
+        - "./mysql/mysql.cnf:/etc/my.cnf"
+        - "./mysql:/docker-entrypoint-initdb.d/"
+      ports:
+        - "3306:3306"
+
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    ports:
+      - 27017:27017
+    volumes:
+      - ./mongodb/data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=admin
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_BASICAUTH_USERNAME=mongoexpress
+      - ME_CONFIG_BASICAUTH_PASSWORD=mongoexpress
+  
+  rmqnamesrv:
+    image: foxiswho/rocketmq:4.8.0
+    container_name: rmqnamesrv
+    ports:
+      - 9876:9876
+    volumes:
+      - ./rmq/srv/logs:/home/rocketmq/logs
+      - ./rmq/srv/store:/home/rocketmq/store
+    environment:
+      JAVA_OPT_EXT: "-Duser.home=/home/rocketmq -Xms512M -Xmx512M -Xmn128m"
+    command: ["sh","mqnamesrv"]
+    networks:
+      rmq:
+        aliases:
+          - rmqnamesrv
+
+  rmqbroker:
+    image: foxiswho/rocketmq:4.8.0
+    container_name: rmqbroker
+    ports:
+      - 10909:10909
+      - 10911:10911
+    volumes:
+      - ./rmq/broker/logs:/home/rocketmq/logs
+      - ./rmq/broker/store:/home/rocketmq/store
+      - ./rmq/broker/broker.conf:/etc/rocketmq/broker.conf
+    environment:
+        JAVA_OPT_EXT: "-Duser.home=/home/rocketmq -Xms512M -Xmx512M -Xmn128m"
+    command: ["sh","mqbroker","-c","/etc/rocketmq/broker.conf","-n","rmqnamesrv:9876","autoCreateTopicEnable=true"]
+    depends_on:
+      - rmqnamesrv
+    networks:
+      rmq:
+        aliases:
+          - rmqbroker
+
+  rmqconsole:
+    image: styletang/rocketmq-console-ng
+    container_name: rmqconsole
+    ports:
+      - 8180:8080
+    environment:
+        JAVA_OPTS: "-Drocketmq.namesrv.addr=rmqnamesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false"
+    depends_on:
+      - rmqnamesrv
+    networks:
+      rmq:
+        aliases:
+          - rmqconsole
+
+networks:
+  rmq:
+    driver: bridge
