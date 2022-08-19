@@ -1,20 +1,22 @@
 version: '3'
 services:
   redis:
-    image: redis:latest
+    image: redis
     container_name: redis
     restart: always
     ports:
       - 6379:6379
-    network_mode: "bridge"
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:rw
       - ./redis/data:/data:rw
     command:
       /bin/bash -c "redis-server /usr/local/etc/redis/redis.conf"
+    networks:
+      redis:
+        aliases:
+          - redis
 
   mysql:
-      network_mode: "bridge"
       environment:
           MYSQL_ROOT_PASSWORD: "root"
       image: "mysql"
@@ -26,6 +28,10 @@ services:
         - "./mysql:/docker-entrypoint-initdb.d/"
       ports:
         - "3306:3306"
+      networks:
+        mysql:
+          aliases:
+            - mysql
 
   mongodb:
     image: mongo
@@ -37,6 +43,10 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=admin
+    networks:
+      mongodb:
+        aliases:
+          - mongodb
 
   mongo-express:
     image: mongo-express
@@ -50,6 +60,10 @@ services:
       - ME_CONFIG_MONGODB_SERVER=mongodb
       - ME_CONFIG_BASICAUTH_USERNAME=mongoexpress
       - ME_CONFIG_BASICAUTH_PASSWORD=mongoexpress
+    networks:
+      mongodb:
+        aliases:
+          - mongodb
   
   rmqnamesrv:
     image: foxiswho/rocketmq:4.8.0
@@ -103,4 +117,10 @@ services:
 
 networks:
   rmq:
+    driver: bridge
+  redis:
+    driver: bridge
+  mysql:
+    driver: bridge
+  mongodb:
     driver: bridge
