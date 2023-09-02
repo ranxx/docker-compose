@@ -1,0 +1,41 @@
+version: '3'
+services:
+  ### etcd 其他环境配置见：https://doczhcn.gitbook.io/etcd/index/index-1/configuration
+  etcd1:
+    image: bitnami/etcd:latest  # 镜像
+    container_name: etcd1       # 容器名 --name
+    restart: always             # 总是重启
+    networks:
+      - etcd-net                # 使用的网络 --network
+    ports:                      # 端口映射 -p
+      - "20000:2379"
+      - "20001:2380"
+    environment:                # 环境变量 --env
+      - ALLOW_NONE_AUTHENTICATION=yes                       # 允许不用密码登录
+      - ETCD_NAME=etcd1                                     # etcd 的名字
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd1:2380  # 列出这个成员的伙伴 URL 以便通告给集群的其他成员
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380           # 用于监听伙伴通讯的URL列表
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379         # 用于监听客户端通讯的URL列表
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd1:2379        # 列出这个成员的客户端URL，通告给集群中的其他成员
+      - ETCD_MAX_REQUEST_BYTES=52428800                     # 50 M
+      - ETCD_AUTO_COMPACTION_RETENTION=24                   # 几小时的选项自动压缩
+      - ETCD_QUOTA_BACKEND_BYTES=2147483648                 # 空间限额2G 2 * 1024 * 1024 * 1024
+    volumes:
+      - etcd1_data:/bitnami/etcd                            # 挂载的数据卷
+
+  etcdui:
+    image: deltaprojects/etcdkeeper
+    container_name: etcdui
+    restart: always
+    networks:
+      - etcd-net
+    ports:
+      - "18080:8080"
+
+networks:
+  etcd-net:           # 网络
+    driver: bridge    # 桥接模式
+
+volumes:
+  etcd1_data:         # 挂载到本地的数据卷名
+    driver: local
